@@ -1,0 +1,67 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+model User {
+  id           String   @id @db.Uuid // This will match Supabase auth.users.id
+  email        String   @unique
+  username     String   @unique
+  settings     Json     @default("{}")
+  userPosition Int?     @unique // New: Optional user position, unique
+  hasSeenConfetti Boolean @default(false) // New: Track if user has seen confetti
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  messages     Message[]
+  
+  @@map("users")
+  feedback Feedback[]
+}
+
+model AppMetadata {
+  id                 String   @id @default(cuid())
+  nextUserPosition   Int      @default(1) // Global counter for user positions
+  lastUpdated        DateTime @updatedAt
+
+  @@map("app_metadata")
+}
+
+model Message {
+  id        String   @id @default(uuid()) @db.Uuid
+  text      String
+  sender    String   // 'user' or 'ai'
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("messages")
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model Feedback {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  userPosition String   @map("user_position")
+  feedbackText String   @map("feedback_text")
+  createdAt    DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("feedback")
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
